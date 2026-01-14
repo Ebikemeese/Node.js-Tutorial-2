@@ -1,6 +1,7 @@
 const Image = require('../models/image')
 const {uploadToCloudinary} = require('../helpers/cloudinary-helper')
 const fs = require('fs')
+const cloudinary = require('../config/cloudinary')
 
 const uploadImageController = async (req, res) => {
     try {
@@ -62,7 +63,52 @@ const fetchImagesController = async(req, res) => {
     }
 }
 
+//delete image controller
+const deleteImageController = async (req, res) => {
+    try {
+        const getCurrentIdOfImage = req.params.id
+        const userId = req.userInfo.userId
+
+        const image = await Image.findById(getCurrentIdOfImage)
+
+        if (!image) {
+            return res.status(404).json({
+                success: false,
+                message: 'Image not found'
+            })
+        }
+
+        //check if image is uploaded by user
+        if (image.uploadedBy.toString() !== userId) {
+            res.status(403).json({
+                success: false,
+                message: 'You are not the owner of this image'
+            })
+        }
+
+        //delete the image from cloudinary
+        await cloudinary.uploader.destroy(image.publicId)
+
+        //delete image from mongodb database
+        await Image.findByIdAndDelete(getCurrentIdOfImage)
+
+        res.status(200).json({
+            success: true,
+            message: 'Image deleted successfully'
+        })
+
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({
+            success: false,
+            message: 'Something went wrong, please try again'
+        })
+    }
+}
+
 module.exports = {
     uploadImageController,
-    fetchImagesController
+    fetchImagesController,
+    deleteImageController
 }
